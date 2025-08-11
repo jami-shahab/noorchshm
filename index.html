@@ -27,6 +27,12 @@
         image-rendering: crisp-edges;
         box-shadow: 0 0 40px transparent inset;
         background: transparent;
+        touch-action: none; /* prevent default touch behaviors like scrolling */
+        -webkit-touch-callout: none; /* prevent callout on iOS */
+        -webkit-user-select: none; /* prevent text selection */
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
       }
       .hint {
         position: fixed;
@@ -185,6 +191,20 @@
           }
           isArranged = !isArranged;
         });
+
+        // Add touch support for mobile devices
+        window.addEventListener('touchstart', (ev) => {
+          ev.preventDefault(); // prevent default touch behavior
+          console.log('Touch detected, isArranged:', isArranged); // debug
+          if (isArranged) {
+            // Scatter dots randomly
+            scatterDots();
+          } else {
+            // Arrange dots to proper positions
+            arrangeDots();
+          }
+          isArranged = !isArranged;
+        }, { passive: false });
 
         function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
         function smoothstep(e0, e1, x) {
