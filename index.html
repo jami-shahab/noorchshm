@@ -36,16 +36,35 @@
       }
       .hint {
         position: fixed;
-        bottom: 10px;
+        bottom: 40%;
         left: 50%;
-        transform: translateX(-50%);
-        font-family: 'Brush Script MT', cursive;
-        font-size: 48px;
-        font-style: italic;
-        opacity: 0.55;
+        transform: translateX(-50%) rotate(-2deg) skewY(-3deg); /* subtle calligraphic effect */
+        font-family: 'Amiri', 'Scheherazade', 'Noto Nastaliq Urdu', 'Lateef', 'Diwan Kufi', 'Diwan Thuluth', 'Arial', serif;
+        font-size: 250px;
+        font-weight: 100;
+        font-stretch: condensed;
+        font-style: normal;
+        letter-spacing: 2.5px; /* increased for skinnier look */
+        line-height: 1.1;
+        opacity: 0.30;
         text-align: center;
         user-select: none;
         pointer-events: none;
+        background: linear-gradient(90deg, #eaf6ff 0%, #b3d0ff 40%, #a0c4ff 60%, #ffffff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow:
+          0 2px 12px rgba(80,120,200,0.22),
+          0 1px 0 #eaf6ff,
+          0 0px 0 #b3d0ff;
+        -webkit-text-stroke: 1.2px #b3d0ff;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .hint.arranged {
+        left: 15%;
+        bottom: 15%;
+        font-size: 100px;
       }
     </style>
   </head>
@@ -68,6 +87,14 @@
         let ctx = null; // will be set in render()
         let vw = 0, vh = 0; // viewport dimensions
         let dotMin = 0, dotMax = 0, alphaMin = 0, alphaMax = 0; // drawing params
+
+        // Lightweight animation state (applied to ~70% of dots)
+        let animRAF = null;
+        let animTime = 0; // seconds
+        let lastFrameMs = 0; // for throttling to ~30fps
+        let animatedMask = []; // boolean-ish (0/1)
+        let twPhase = [], twSpeed = [], twAmp = []; // twinkling params
+        let fxPhase = [], fyPhase = [], fxSpeed = [], fySpeed = [], fxAmp = [], fyAmp = []; // float params
 
         // Optional: allow manual click to set focus center
         let manualFocus = null; // { x, y } in device pixels
@@ -161,13 +188,23 @@
             const dot = dotPositions[i];
             const w = dot.weight;
 
-            const jitter = 0.85 + Math.random() * 0.3;
-            const a = alphaMin + (alphaMax - alphaMin) * Math.pow(w * jitter, 0.7);
+            // Precompute base appearance cheaply each frame
+            const jitter = 0.95; // fixed to reduce per-frame randomness
+            let a = alphaMin + (alphaMax - alphaMin) * Math.pow(w * jitter, 0.7);
             const r = dotMin + (dotMax - dotMin) * Math.pow(w * jitter, 0.5);
+
+            // Movement and twinkle for ~70% of dots
+            let dx = 0, dy = 0, tw = 1;
+            if (animatedMask[i]) {
+              tw = 1 - twAmp[i] + twAmp[i] * (0.5 + 0.5 * Math.sin(animTime * twSpeed[i] + twPhase[i]));
+              dx = Math.sin(animTime * fxSpeed[i] + fxPhase[i]) * fxAmp[i];
+              dy = Math.sin(animTime * fySpeed[i] + fyPhase[i]) * fyAmp[i];
+            }
+            a *= tw;
 
             ctx.globalAlpha = a;
             ctx.fillStyle = dot.color;
-            ctx.fillRect(pos.x, pos.y, r, r);
+            ctx.fillRect(pos.x + dx, pos.y + dy, r, r);
 
             // Draw micro-cluster if on edge
             if (dot.edge > 0.35) {
@@ -190,6 +227,50 @@
           return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         }
 
+        // Initialize per-dot animation parameters (70% of dots animated)
+        function initPerDotAnimation() {
+          const n = dotPositions.length;
+          animatedMask = new Array(n);
+          twPhase = new Array(n); twSpeed = new Array(n); twAmp = new Array(n);
+          fxPhase = new Array(n); fyPhase = new Array(n);
+          fxSpeed = new Array(n); fySpeed = new Array(n);
+          fxAmp = new Array(n); fyAmp = new Array(n);
+
+          for (let i = 0; i < n; i++) {
+            const animate = Math.random() > 0.7; // 70%
+            animatedMask[i] = animate ? 1 : 0;
+            // Small but visible floating (in pixels, scale with dpr)
+            const ampBase = 2 * dpr + Math.random() * 3 * dpr;
+            fxAmp[i] = ampBase;
+            fyAmp[i] = ampBase * (0.6 + Math.random() * 0.8);
+            fxSpeed[i] = 0.4 + Math.random() * 0.6; // radians/sec
+            fySpeed[i] = 0.4 + Math.random() * 0.6;
+            fxPhase[i] = Math.random() * Math.PI * 2;
+            fyPhase[i] = Math.random() * Math.PI * 2;
+            // Twinkle parameters
+            twAmp[i] = 0.50 + Math.random() * 0.60; // modulation
+            twSpeed[i] = 0.05 + Math.random() * 0.1; // Hz-ish
+            twPhase[i] = Math.random() * Math.PI * 2;
+          }
+        }
+
+        function startAnimLoop() {
+          if (animRAF) cancelAnimationFrame(animRAF);
+          animTime = 0;
+          lastFrameMs = 0;
+          const step = (ts) => {
+            if (!lastFrameMs) lastFrameMs = ts;
+            const dtMs = ts - lastFrameMs;
+            if (dtMs >= 33) { // ~30fps throttle
+              animTime += dtMs / 1000;
+              renderDots();
+              lastFrameMs = ts;
+            }
+            animRAF = requestAnimationFrame(step);
+          };
+          animRAF = requestAnimationFrame(step);
+        }
+
         function render() {
           vw = Math.floor(window.innerWidth * dpr);
           vh = Math.floor(window.innerHeight * dpr);
@@ -205,12 +286,24 @@
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
 
-          // Star color helpers: create shades from white -> cool blue
+          // Star color helpers: create shades from white -> light blue -> cool blue
           function colorWhiteBlue(t) {
             t = clamp(t, 0, 1);
-            const r = Math.round(lerp(255, 130, t)); // less red as bluer
-            const g = Math.round(lerp(255, 175, t)); // subtle green drop
-            const b = Math.round(lerp(255, 255, t)); // keep blue high
+            // Enhanced range: white -> light blue -> cool blue
+            let r, g, b;
+            if (t < 0.5) {
+              // First half: white to light blue
+              const t1 = t * 2;
+              r = Math.round(lerp(255, 200, t1));
+              g = Math.round(lerp(255, 220, t1));
+              b = Math.round(lerp(255, 255, t1));
+            } else {
+              // Second half: light blue to cool blue
+              const t2 = (t - 0.5) * 2;
+              r = Math.round(lerp(200, 130, t2));
+              g = Math.round(lerp(220, 175, t2));
+              b = Math.round(lerp(255, 255, t2));
+            }
             return `rgb(${r},${g},${b})`;
           }
           function colorForWeight(localWeight01) {
@@ -467,33 +560,56 @@
           generateDotPositions();
           // Initial render of scattered dots
           renderDots();
+          // Init per-dot animation and start a throttled loop
+          initPerDotAnimation();
+          startAnimLoop();
 
-          // Click to re-center density falloff
-          window.addEventListener('click', (ev) => {
-            console.log('Click detected, isArranged:', isArranged); // debug
+                  // Click to re-center density falloff
+        window.addEventListener('click', (ev) => {
+          console.log('Click detected, isArranged:', isArranged); // debug
+          if (isArranged) {
+            // Scatter dots randomly
+            scatterDots();
+          } else {
+            // Arrange dots to proper positions
+            arrangeDots();
+          }
+          isArranged = !isArranged;
+          
+          // Update hint text styling
+          const hintElement = document.querySelector('.hint');
+          if (hintElement) {
             if (isArranged) {
-              // Scatter dots randomly
-              scatterDots();
+              hintElement.classList.add('arranged');
             } else {
-              // Arrange dots to proper positions
-              arrangeDots();
+              hintElement.classList.remove('arranged');
             }
-            isArranged = !isArranged;
-          });
+          }
+        });
 
-          // Add touch support for mobile devices
-          window.addEventListener('touchstart', (ev) => {
-            ev.preventDefault(); // prevent default touch behavior
-            console.log('Touch detected, isArranged:', isArranged); // debug
+                  // Add touch support for mobile devices
+        window.addEventListener('touchstart', (ev) => {
+          ev.preventDefault(); // prevent default touch behavior
+          console.log('Touch detected, isArranged:', isArranged); // debug
+          if (isArranged) {
+            // Scatter dots randomly
+            scatterDots();
+          } else {
+            // Arrange dots to proper positions
+            arrangeDots();
+          }
+          isArranged = !isArranged;
+          
+          // Update hint text styling
+          const hintElement = document.querySelector('.hint');
+          if (hintElement) {
             if (isArranged) {
-              // Scatter dots randomly
-              scatterDots();
+              hintElement.classList.add('arranged');
             } else {
-              // Arrange dots to proper positions
-              arrangeDots();
+              hintElement.classList.remove('arranged');
             }
-            isArranged = !isArranged;
-          }, { passive: false });
+          }
+        }, { passive: false });
         }
       })();
     </script>
