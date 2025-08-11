@@ -36,16 +36,19 @@
       }
       .hint {
         position: fixed;
-        bottom: 40%;
+        bottom: 20%;
         left: 50%;
         transform: translateX(-50%) rotate(-2deg) skewY(-3deg); /* subtle calligraphic effect */
         font-family: 'Amiri', 'Scheherazade', 'Noto Nastaliq Urdu', 'Lateef', 'Diwan Kufi', 'Diwan Thuluth', 'Arial', serif;
-        font-size: 250px;
+        font-size: 10rem;
         font-weight: 100;
         font-stretch: condensed;
         font-style: normal;
-        letter-spacing: 2.5px; /* increased for skinnier look */
-        line-height: 1.1;
+        /* For Arabic/Persian, letter-spacing is often ignored due to ligatures.
+           Use 'unicode-bidi: isolate' and 'direction: rtl' to help, and try word-spacing instead. */
+        letter-spacing: 0.2em; /* use em for more visible effect */
+        word-spacing: -0.6em;  /* negative word spacing to pull glyphs closer */
+        line-height: 1.8; /* even more breathing room */
         opacity: 0.30;
         text-align: center;
         user-select: none;
@@ -60,17 +63,25 @@
           0 0px 0 #b3d0ff;
         -webkit-text-stroke: 1.2px #b3d0ff;
         transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        direction: rtl;
+        unicode-bidi: isolate;
       }
       .hint.arranged {
         left: 15%;
-        bottom: 15%;
-        font-size: 100px;
+        bottom: 10%;
+        font-size: 4rem;
+      }
+      .hint br {
+        line-height: 2.8;
+        content: "";
+        display: block;
+        margin: 1.2em 0 1.1em 0; /* even more vertical space between lines */
       }
     </style>
   </head>
   <body>
     <canvas id="sketch"></canvas>
-    <div class="hint">نوره چشم</div>
+    <div class="hint">نوره<br>چشم</div>
 
     <script>
       (function () {
