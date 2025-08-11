@@ -180,33 +180,6 @@
           }
         }
 
-        // Click to re-center density falloff
-        window.addEventListener('click', (ev) => {
-          console.log('Click detected, isArranged:', isArranged); // debug
-          if (isArranged) {
-            // Scatter dots randomly
-            scatterDots();
-          } else {
-            // Arrange dots to proper positions
-            arrangeDots();
-          }
-          isArranged = !isArranged;
-        });
-
-        // Add touch support for mobile devices
-        window.addEventListener('touchstart', (ev) => {
-          ev.preventDefault(); // prevent default touch behavior
-          console.log('Touch detected, isArranged:', isArranged); // debug
-          if (isArranged) {
-            // Scatter dots randomly
-            scatterDots();
-          } else {
-            // Arrange dots to proper positions
-            arrangeDots();
-          }
-          isArranged = !isArranged;
-        }, { passive: false });
-
         function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
         function smoothstep(e0, e1, x) {
           const t = clamp((x - e0) / (e1 - e0), 0, 1);
@@ -494,6 +467,33 @@
           generateDotPositions();
           // Initial render of scattered dots
           renderDots();
+
+          // Click to re-center density falloff
+          window.addEventListener('click', (ev) => {
+            console.log('Click detected, isArranged:', isArranged); // debug
+            if (isArranged) {
+              // Scatter dots randomly
+              scatterDots();
+            } else {
+              // Arrange dots to proper positions
+              arrangeDots();
+            }
+            isArranged = !isArranged;
+          });
+
+          // Add touch support for mobile devices
+          window.addEventListener('touchstart', (ev) => {
+            ev.preventDefault(); // prevent default touch behavior
+            console.log('Touch detected, isArranged:', isArranged); // debug
+            if (isArranged) {
+              // Scatter dots randomly
+              scatterDots();
+            } else {
+              // Arrange dots to proper positions
+              arrangeDots();
+            }
+            isArranged = !isArranged;
+          }, { passive: false });
         }
       })();
     </script>
